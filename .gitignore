@@ -1,3 +1,5 @@
 node_modules/
 dist/
 notices.txt
+project-structure.txt
+.env
