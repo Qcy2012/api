@@ -1,13 +1,12 @@
+// POST /api/count-letters - C++ letter count (demonstrates string passing via memory)
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getMathModule } from '../src/native/index.js';
-import { sendOk, sendError } from '../src/utils/response.js';
+import { mathNative } from '../src/native/index';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return sendError(res, 405, '仅支持 POST');
-  const { text } = req.body as { text?: string };
-  if (typeof text !== 'string') return sendError(res, 400, '请求体需为 { text: string }');
-  const m = await getMathModule();
-  const t0 = Date.now();
-  const count = m.countLetters(text);
-  sendOk(res, { total: text.length, letters: count, elapsed_ms: Date.now() - t0, backend: m.backend });
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  const { text } = req.body || {};
+  if (typeof text !== 'string') return res.status(400).json({ error: 'body.text must be a string' });
+  const start = process.hrtime.bigint();
+  const result = mathNative.countLetters(text);
+  const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+  res.status(200).json({ textLength: text.length, letterCount: result, elapsed_ms: elapsed, backend: mathNative.backend });
 }

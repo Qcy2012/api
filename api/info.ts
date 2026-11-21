@@ -1,17 +1,16 @@
+// GET /api/info - Runtime info and backend status
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getMathModule } from '../src/native/index.js';
-import { sendOk } from '../src/utils/response.js';
+import { mathNative } from '../src/native/index';
 
-export default async function handler(_req: VercelRequest, res: VercelResponse) {
-  const m = await getMathModule();
-  sendOk(res, {
-    backend: m.backend,
-    node: process.version,
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  res.status(200).json({
+    nodeVersion: process.version,
     platform: process.platform,
     arch: process.arch,
+    backend: mathNative.backend,
     wasmSupport: typeof WebAssembly !== 'undefined',
-    note: m.backend === 'js'
-      ? 'wasm/math.wasm 不存在，正在使用纯 JS 实现。运行 npm run build:wasm 编译 C++ 为 WASM。'
-      : 'C++ 编译的 WASM 模块已加载'
+    environment: process.env.VERCEL ? 'vercel' : 'local',
+    region: process.env.VERCEL_REGION || null,
+    memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100
   });
 }

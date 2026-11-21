@@ -2,7 +2,6 @@ node_modules/
 dist/
 .vercel/
 *.log
+.DS_Store
 .env
 .env.local
-# 编译产物可选提交——建议把 math.wasm 提交到 Git，这样 Vercel 部署时无需编译
-# wasm/math.wasm

@@ -1,12 +1,13 @@
+// GET /api/fibonacci?n=50 - C++ Fibonacci calculation
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getMathModule } from '../src/native/index.js';
-import { sendOk, sendError, parsePositiveInt } from '../src/utils/response.js';
+import { mathNative } from '../src/native/index';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const n = parsePositiveInt(req.query.n, 1000, 10);
-  if (n > 1000) return sendError(res, 400, 'n 必须为 0-1000 的正整数');
-  const m = await getMathModule();
-  const t0 = Date.now();
-  const result = m.fibonacci(n);
-  sendOk(res, { n, result, elapsed_ms: Date.now() - t0, backend: m.backend });
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  const n = parseInt(req.query.n as string, 10);
+  if (isNaN(n) || n < 0) return res.status(400).json({ error: 'n must be a non-negative integer' });
+  if (n > 93) return res.status(400).json({ error: 'n must be <= 93 (fits uint64)' });
+  const start = process.hrtime.bigint();
+  const result = mathNative.fibonacci(n);
+  const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+  res.status(200).json({ n, result, elapsed_ms: elapsed, backend: mathNative.backend });
 }
