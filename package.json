@@ -1,0 +1,22 @@
+{
+  "name": "API-Server",
+  "version": "1.0.0",
+  "scripts": {
+    "build:native": "node-gyp rebuild",
+    "build:ts": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts"
+  },
+  "dependencies": {
+    "express": "^5.0.0",
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "node-gyp": "^11.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "gypfile": true
+}
