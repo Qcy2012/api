@@ -1,8 +1,9 @@
 node_modules/
 dist/
+build/
 .vercel/
+*.log
 .env
 .env.local
-*.log
-.DS_Store
-build/
+wasm/*.wasm
+!wasm/math.wasm

@@ -1,75 +1,75 @@
-# Node.js + TypeScript + C++ (WASM) API on Vercel
+# Node.js + WASM (C++) API on Vercel
 
-Zero-install C++ via WebAssembly — **no Visual Studio, no Python, no gyp required**.
+A minimal API template using Node.js + TypeScript + C++ (compiled to WebAssembly), deployed to Vercel as Serverless Functions. **No Visual Studio, no node-gyp, no local C++ compiler needed.**
 
-## Quick start
+## Quick Start
 
 ```bash
-npm install      # installs JS/TS deps only, never invokes any C++ compiler
-npm run build    # typecheck with tsc (no emit — Vercel transpiles TypeScript automatically)
-npx vercel dev   # local dev server at http://localhost:3000/api
+npm install
+npm run typecheck       # Type-check TypeScript (no build step needed)
+npx vercel dev          # Local development server
 ```
-
-All APIs work out of the box with a pure-JS fallback. Visit `/api/info` to see whether the WASM backend loaded.
-
-## Project layout
-
-```
-api/                 Vercel Serverless Functions (filesystem routing)
-  index.ts           GET /api          — API entry
-  health.ts          GET /api/health   — health check
-  fibonacci.ts       GET /api/fibonacci?n=60
-  sum.ts             POST /api/sum        { numbers: number[] }
-  isprime.ts         GET /api/isprime?n=997
-  factorial.ts       GET /api/factorial?n=15
-  hypot.ts           GET /api/hypot?a=3&b=4
-  count-letters.ts   POST /api/count-letters  { text: string }
-  info.ts            GET /api/info     — backend/node info
-src/native/
-  index.ts           WASM loader + JS fallback
-wasm/
-  math.cpp           C++ source
-  math.wasm          (optional) compiled WebAssembly, produced by npm run build:wasm
-scripts/
-  build-wasm.mjs     emcc build helper (requires emscripten or Docker)
-```
-
-## Compiling C++ → WASM (optional, only needed if you edit math.cpp)
-
-**Option A: Docker (no local toolchain at all)**
-
-```
-docker run --rm -v "${PWD}/wasm:/src" emscripten/emsdk \
-  emcc /src/math.cpp -o /src/math.wasm \
-  -s WASM=1 -s STANDALONE_WASM=1 -s NO_EXIT_RUNTIME=1 \
-  -s ALLOW_MEMORY_GROWTH=1 -s MALLOC=emmalloc -O3 \
-  -s "EXPORTED_FUNCTIONS=['_fibonacci','_sum_array','_is_prime','_factorial','_calc_hypot','_count_letters','_malloc','_free']"
-```
-
-**Option B: Emscripten SDK** (~300 MB, independent from VS)
-
-```
-git clone https://github.com/emscripten-core/emsdk.git
-cd emsdk && emsdk install latest && emsdk activate latest
-# Windows: emsdk_env.bat    macOS/Linux: source ./emsdk_env.sh
-cd .. && npm run build:wasm
-```
-
-Commit `wasm/math.wasm` to Git so Vercel never needs to compile anything.
 
 ## Deploy to Vercel
 
+```bash
+# Option 1: CLI
+vercel login && vercel --prod
+
+# Option 2: Git push (recommended)
+# Push to GitHub, then import at https://vercel.com/new
 ```
-git push
+
+Vercel automatically detects `api/*.ts` as Serverless Functions and compiles them with `@vercel/node`. No manual build step is needed.
+
+## Enable C++ (WASM) Backend
+
+Without a `.wasm` file, the API uses pure JavaScript fallback (fully functional). To get C++ performance:
+
+### Option A: Docker (recommended, one command)
+```bash
+npm run build:wasm      # Uses emscripten/emsdk Docker image
+git add wasm/math.wasm
+git commit -m "add compiled wasm" && git push
 ```
 
-Vercel auto-detects the project — `vercel.json` needs no runtime/buildCommand entries.
+### Option B: Online compiler
+Open https://wasdk.github.io/WasmFiddle/, paste `wasm/math.cpp`, compile to `.wasm`, save as `wasm/math.wasm`.
 
-## Adding a new C++ function
+### Option C: Install Emscripten (~300MB, no VS needed)
+Follow https://emscripten.org/docs/getting_started/downloads.html, then run `npm run build:wasm`.
 
-1. Add the function in `wasm/math.cpp` inside `extern "C" { ... }`.
-2. Add its name to `EXPORTED_FUNCTIONS` in `scripts/build-wasm.mjs` (or the Docker command).
-3. Recompile WASM.
-4. Add a method on `WasmExports` interface + `buildWasmModule()` return in `src/native/index.ts`.
-5. Add the matching JS fallback in `jsBackend`.
-6. Add an `api/xxx.ts` handler.
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api` | API documentation |
+| GET | `/api/health` | Health check |
+| GET | `/api/info` | Runtime info & backend status |
+| GET | `/api/fibonacci?n=N` | Compute Fibonacci(N) |
+| POST | `/api/sum` | Sum array `{ "numbers": [1,2,3] }` |
+| GET | `/api/isprime?n=N` | Primality test |
+| GET | `/api/factorial?n=N` | N! (n ≤ 20) |
+| GET | `/api/hypot?a=A&b=B` | sqrt(a² + b²) |
+| POST | `/api/count-letters` | Count letters `{ "text": "Hello" }` |
+
+## Project Structure
+
+```
+api/            Serverless Functions (one file per route)
+public/         Static files (index.html landing page)
+src/native/     WASM loader + JS fallback
+wasm/           C++ source + compiled .wasm
+scripts/        WASM build script (Docker-based)
+vercel.json     Vercel configuration
+tsconfig.json   TypeScript configuration
+```
+
+## Adding a New C++ Function
+
+1. Add function to `wasm/math.cpp` (use `EMSCRIPTEN_KEEPALIVE`, C linkage)
+2. Add function name to `EXPORTED_FUNCTIONS` in `scripts/build-wasm.mjs`
+3. Add TS interface method in `src/native/index.ts`
+4. Add JS fallback implementation in the same file
+5. Rebuild WASM: `npm run build:wasm`
+6. Add API route in `api/`

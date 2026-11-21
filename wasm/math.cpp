@@ -1,32 +1,38 @@
-// math.cpp — C++ logic compiled to WebAssembly
-// Exports: _fibonacci, _sum_array, _is_prime, _factorial, _calc_hypot, _count_letters, _malloc, _free
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
-#include <cmath>
-#include <cstring>
-#include <cstdint>
-
+#ifdef __cplusplus
 extern "C" {
+#endif
 
-// Fibonacci (iterative, O(n)) — returns int64 to avoid overflow for n up to ~90
-int64_t fibonacci(int n) {
-    if (n < 0) return -1;
-    if (n < 2) return n;
-    int64_t a = 0, b = 1;
-    for (int i = 2; i <= n; ++i) {
-        int64_t c = a + b;
-        a = b; b = c;
+// Fibonacci: iterative, O(n)
+EMSCRIPTEN_KEEPALIVE
+uint64_t fibonacci(int n) {
+    if (n <= 0) return 0;
+    if (n <= 2) return 1;
+    uint64_t a = 1, b = 1;
+    for (int i = 3; i <= n; i++) {
+        uint64_t c = a + b;
+        a = b;
+        b = c;
     }
     return b;
 }
 
-// Sum of f64 array — JS passes pointer + length via shared memory
-double sum_array(const double* arr, int len) {
+// Sum array: takes pointer to double array and length, returns sum
+EMSCRIPTEN_KEEPALIVE
+double sum_array(double* arr, int len) {
     double s = 0;
-    for (int i = 0; i < len; ++i) s += arr[i];
+    for (int i = 0; i < len; i++) {
+        s += arr[i];
+    }
     return s;
 }
 
-// Primality test — simple trial division, fine for moderate inputs
+// Primality test: naive, O(sqrt(n))
+EMSCRIPTEN_KEEPALIVE
 int is_prime(int n) {
     if (n < 2) return 0;
     if (n < 4) return 1;
@@ -37,26 +43,40 @@ int is_prime(int n) {
     return 1;
 }
 
-int64_t factorial(int n) {
-    if (n < 0) return -1;
+// Factorial
+EMSCRIPTEN_KEEPALIVE
+uint64_t factorial(int n) {
     if (n <= 1) return 1;
-    int64_t r = 1;
-    for (int i = 2; i <= n; ++i) r *= i;
+    uint64_t r = 1;
+    for (int i = 2; i <= n; i++) {
+        r *= (uint64_t)i;
+    }
     return r;
 }
 
+// Hypotenuse
+EMSCRIPTEN_KEEPALIVE
 double calc_hypot(double a, double b) {
-    return std::sqrt(a * a + b * b);
+    return sqrt(a * a + b * b);
 }
 
-// Count A-Z and a-z letters in a string passed by pointer+len, returns 32-bit int
-int count_letters(const char* s, int len) {
-    int c = 0;
-    for (int i = 0; i < len; ++i) {
-        char ch = s[i];
-        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) ++c;
+// Count letters in a string (passed as pointer + length)
+// Returns pointer to a 26-element array of counts
+EMSCRIPTEN_KEEPALIVE
+uint8_t* count_letters(const char* str, int len) {
+    static uint8_t counts[26];
+    memset(counts, 0, 26);
+    for (int i = 0; i < len; i++) {
+        char c = str[i];
+        if (c >= 'A' && c <= 'Z') {
+            counts[c - 'A']++;
+        } else if (c >= 'a' && c <= 'z') {
+            counts[c - 'a']++;
+        }
     }
-    return c;
+    return counts;
 }
 
-} // extern "C"
+#ifdef __cplusplus
+}
+#endif

@@ -11,7 +11,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": false
+    "declaration": false,
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": ["api/**/*.ts", "src/**/*.ts", "types/**/*.ts"]
 }

@@ -1,13 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mathModule } from '../src/native/index';
+import { mathNative } from '../src/native/index';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  const n = parseInt(String(req.query.n ?? '2'), 10);
-  if (Number.isNaN(n) || n < 0) {
-    return res.status(400).json({ error: 'Parameter n must be a non-negative integer.' });
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+  await mathNative.init();
+  const n = parseInt(req.query.n as string, 10);
+  if (isNaN(n) || n < 0 || n > 2147483647) {
+    res.status(400).json({ error: 'Parameter n must be a positive integer' });
+    return;
   }
   const start = Date.now();
-  const result = mathModule.isPrime(n);
-  const ms = Date.now() - start;
-  res.status(200).json({ n, isPrime: result, backend: mathModule.backend, ms });
+  const result = mathNative.isPrime(n);
+  const elapsed = Date.now() - start;
+  res.status(200).json({
+    n,
+    isPrime: result,
+    backend: mathNative.getBackend(),
+    elapsedMs: elapsed
+  });
 }

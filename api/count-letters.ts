@@ -1,21 +1,30 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mathModule } from '../src/native/index';
+import { mathNative } from '../src/native/index';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    res.status(405).json({ error: 'Method not allowed, use POST' });
+    return;
   }
-  const body = req.body as { text?: string } | undefined;
-  const text = typeof body?.text === 'string' ? body!.text : '';
-  if (text.length === 0) {
-    return res.status(400).json({ error: 'body.text must be a non-empty string.' });
+  await mathNative.init();
+  const { text } = req.body as { text?: string };
+  if (typeof text !== 'string' || text.length === 0 || text.length > 100000) {
+    res.status(400).json({ error: 'Body must contain a text field (1-100000 chars)' });
+    return;
   }
   const start = Date.now();
-  const result = mathModule.countLetters(text);
-  const ms = Date.now() - start;
-  res.status(200).json({ length: text.length, letters: result, backend: mathModule.backend, ms });
+  const counts = mathNative.countLetters(text);
+  const elapsed = Date.now() - start;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const result: Record<string, number> = {};
+  for (let i = 0; i < 26; i++) {
+    if (counts[i] > 0) result[letters[i]] = counts[i];
+  }
+  res.status(200).json({
+    totalLetters: counts.reduce((a, b) => a + b, 0),
+    counts: result,
+    backend: mathNative.getBackend(),
+    elapsedMs: elapsed
+  });
 }
