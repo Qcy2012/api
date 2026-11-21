@@ -1,6 +1,7 @@
 notices.txt
 node_modules/
 build/
+package-lock.json
 *.node
 dist/
 .vercel/
