@@ -1,36 +1,21 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-
-  // 构建命令：先编译C++原生模块，再编译TypeScript
-  "buildCommand": "npm run rebuild && npm run build",
-
-  // 安装命令：确保install阶段就会触发node-gyp编译C++ addon
-  "installCommand": "npm install",
-
-  // 使用Node.js 20.x运行时（Vercel推荐版本，支持C++17）
   "functions": {
     "api/**/*.ts": {
       "runtime": "@vercel/node@3",
       "maxDuration": 30
     }
   },
-
-  // 路由重写：确保所有/api请求正确路由到对应函数
   "rewrites": [
-    { "source": "/api", "destination": "/api/index" },
     { "source": "/", "destination": "/api/index" }
   ],
-
-  // HTTP响应头：添加CORS和安全头
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
       ]
     }
   ]

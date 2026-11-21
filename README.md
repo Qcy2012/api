@@ -1,204 +1,151 @@
-# Node.js + TypeScript + C++ API on Vercel
+# Node.js + TS + C++(WASM) API → Vercel（零 gyp，零 VS）
 
-一个完整的全栈 API 示例，演示如何在 Node.js 项目中集成 C++ 高性能原生模块（通过 N-API），并用 TypeScript 编写 Serverless API，最终部署到 Vercel。
+这个项目展示如何用 **Node.js + TypeScript + C++** 搭建 API 并部署到 Vercel，
+**全程不需要安装 node-gyp、不需要 Visual Studio Build Tools、不需要任何本地 C++ 编译器**。
 
-## 技术栈
+核心思路：把 C++ 代码编译为 **WebAssembly (.wasm)** 而不是 `.node` 原生模块。
 
-| 层 | 技术 | 用途 |
+---
+
+## 为什么不用 gyp
+
+| 问题 | gyp 方案 | WASM 方案 |
 |---|---|---|
-| 运行时 | Node.js 20.x | Serverless 函数运行时 |
-| 语言 | TypeScript 5.x | API 业务逻辑（类型安全） |
-| 高性能层 | C++ + N-API (node-addon-api) | CPU 密集型计算加速 |
-| 构建 | node-gyp | 编译 C++ 原生模块为 .node 二进制 |
-| 包管理 | npm | 依赖管理 |
-| 部署平台 | Vercel Serverless Functions | 自动扩缩容、全球CDN |
+| 本地需要的编译器 | VS Build Tools（~6GB）/ Xcode / GCC | **零**（只需 Node.js） |
+| 安装额外工具 | Python 2.7/3.x + C++ 工具链 | 无 |
+| 跨平台兼容性 | Linux/macOS/Windows 各编一份 | 一份 `.wasm` 全平台通用 |
+| Vercel 部署 | 必须在 build 阶段编译（可行但慢） | 直接上传 `.wasm`，零编译 |
+| 冷启动/性能 | 原生机器码，最快 | 接近原生，约为原生 70-90% |
+| 浏览器复用 | 不可用 | 同一 .wasm 可直接在前端用 |
+
+---
+
+## 快速开始
+
+```bash
+# 1. 安装依赖（只会装 JS/TS 包，不会触发任何 C++ 编译）
+npm install
+
+# 2. 编译 TypeScript
+npm run build
+
+# 3. 本地启动（这一步就能跑！会自动使用 JS fallback）
+npx vercel dev
+# 或 npm run dev
+
+# 浏览器访问 http://localhost:3000/api
+curl http://localhost:3000/api/info
+curl "http://localhost:3000/api/fibonacci?n=60"
+```
+
+此时你已经可以开发和部署 API 了，**C++ 部分会自动用纯 JS 实现替代**，功能完全一致。
+
+---
+
+## 启用真正的 C++ → WASM（三种方式，任选一种，均无需安装 VS）
+
+### 方式 A：Docker 一行命令（推荐，零本地依赖）
+
+```bash
+docker run --rm -v "${PWD}/wasm:/src" emscripten/emsdk \
+  emcc /src/math.cpp -o /src/math.wasm \
+  -s WASM=1 -s STANDALONE_WASM=1 -s NO_EXIT_RUNTIME=1 \
+  -s ALLOW_MEMORY_GROWTH=1 -s MALLOC=emmalloc \
+  -s "EXPORTED_FUNCTIONS=['_fibonacci','_sum_array','_is_prime','_count_letters','_calc_hypot','_factorial','_malloc','_free']" \
+  -O3
+```
+
+生成 `wasm/math.wasm`，提交到 Git。
+
+### 方式 B：在线编译（浏览器即可）
+
+打开 https://wasdk.github.io/WasmFiddle/ 或 https://godbolt.org/（选 wasm32 target），
+把 `wasm/math.cpp` 粘贴进去，下载生成的 `.wasm` 文件保存为 `wasm/math.wasm`。
+
+### 方式 C：安装 Emscripten SDK（Windows 仅需 git + Python，~300MB，不需要 VS）
+
+```bash
+git clone https://github.com/emscripten-core/emsdk.git
+cd emsdk
+emsdk install latest
+emsdk activate latest
+# Windows: emsdk_env.bat
+# macOS/Linux: source ./emsdk_env.sh
+
+# 回到项目目录
+npm run build:wasm
+```
+
+Emscripten 自带完整的 LLVM/Clang 工具链，**完全不依赖 Visual Studio**。
+
+---
+
+## 部署到 Vercel
+
+因为 `.wasm` 是跨平台字节码，部署到 Vercel 时：
+
+- **不需要在 Vercel 上编译任何 C++ 代码**
+- 直接把 `wasm/math.wasm` 和源码一起推到 GitHub
+- 在 Vercel 导入仓库，零配置自动部署
+- `vercel.json` 已配置好所有路由、CORS 和运行时
+
+```bash
+# 或 CLI 一键部署
+npm i -g vercel
+vercel login
+npm run deploy
+```
+
+访问 `/api/info` 可看到 `backend: "wasm"` 表示 C++ 编译的模块已被加载。
+
+---
 
 ## 项目结构
 
 ```
-node-cpp-vercel-api/
-├── api/                        # Vercel Serverless Functions（自动映射路由）
-│   ├── index.ts                # GET /api         - 入口文档
-│   ├── health.ts               # GET /api/health  - 健康检查
-│   ├── fibonacci.ts            # GET /api/fibonacci?n=50 - C++斐波那契
-│   ├── sum.ts                  # POST /api/sum    - C++数组求和
-│   ├── isprime.ts              # GET /api/isprime?n=997 - C++素数判断
-│   └── info.ts                 # GET /api/info    - 运行环境信息
+.
+├── api/                    # Vercel Serverless Functions（自动路由）
+│   ├── index.ts            # GET /api
+│   ├── health.ts           # GET /api/health
+│   ├── fibonacci.ts        # GET /api/fibonacci?n=60
+│   ├── sum.ts              # POST /api/sum {numbers:[...]}
+│   ├── isprime.ts          # GET /api/isprime?n=997
+│   ├── factorial.ts        # GET /api/factorial?n=15
+│   ├── hypot.ts            # GET /api/hypot?a=3&b=4
+│   ├── count-letters.ts    # POST /api/count-letters {text:"..."}
+│   └── info.ts             # GET /api/info
 ├── src/
-│   └── native/
-│       ├── math_addon.cc       # C++ 原生模块源码（N-API绑定）
-│       └── index.ts            # TS封装层（加载.node + JS fallback）
-├── types/
-│   └── math_addon.d.ts         # TypeScript 类型声明
-├── binding.gyp                 # node-gyp 编译配置
-├── vercel.json                 # Vercel 部署配置
-├── tsconfig.json               # TypeScript 编译配置
+│   ├── native/index.ts     # WASM 加载器 + JS fallback（核心胶水）
+│   └── utils/response.ts   # 响应工具函数
+├── wasm/
+│   ├── math.cpp            # C++ 业务源码
+│   └── math.wasm           # （编译后生成）WebAssembly 字节码
+├── scripts/
+│   └── build-wasm.mjs      # 自动检测 emcc 并编译
 ├── package.json
-└── .gitignore
+├── tsconfig.json
+├── vercel.json
+└── README.md
 ```
 
-## 前置环境要求
+---
 
-### 本地开发
-- **Node.js** >= 18.x（推荐 20.x LTS）
-- **npm** >= 9.x
-- **Python** 3.8+（node-gyp构建脚本依赖）
-- **C++编译器**：
-  - Windows: Visual Studio Build Tools 2019/2022（勾选"Desktop development with C++"）
-  - macOS: `xcode-select --install`
-  - Linux: `sudo apt install build-essential python3`（Ubuntu/Debian）
+## 如何添加新的 C++ 函数
 
-### Vercel 部署
-Vercel 的 Linux 构建环境（Amazon Linux）默认已预装 GCC、Python3、make，**可以直接编译 C++ 原生模块**，无需额外配置。
+1. 在 `wasm/math.cpp` 中用 `extern "C"` 添加函数
+2. 在 EXPORTED_FUNCTIONS 列表中加入 `_函数名`
+3. 在 `src/native/index.ts` 的 WasmExports 接口和 getMathModule 返回值中添加对应方法
+4. 在 JS fallback（jsImpl）中也添加同名方法（保证无 wasm 时不报错）
+5. 重新编译 `.wasm`，新建一个 `api/xxx.ts` 路由即可
 
-## 快速开始（本地开发）
+---
 
-```bash
-# 1. 进入项目目录
-cd node-cpp-vercel-api
+## 其他可选方案对比
 
-# 2. 安装依赖（npm install 会自动触发 node-gyp rebuild 编译C++模块）
-npm install
-
-# 3. 手动编译C++模块（如果install后未自动编译）
-npm run rebuild
-
-# 4. 编译TypeScript
-npm run build
-
-# 5. 启动本地开发服务器（模拟Vercel环境）
-npm start
-
-# 访问 http://localhost:3000/api 查看API文档
-```
-
-## API 接口说明
-
-### 1. 入口文档
-```
-GET /api
-```
-返回所有可用接口列表。
-
-### 2. 健康检查
-```
-GET /api/health
-```
-返回服务状态、运行时间、Node版本等。
-
-### 3. C++斐波那契计算
-```
-GET /api/fibonacci?n=50
-```
-| 参数 | 类型 | 范围 | 说明 |
-|---|---|---|---|
-| n | number | 0 - 1,000,000 | 斐波那契数列项数 |
-
-### 4. C++数组求和
-```
-POST /api/sum
-Content-Type: application/json
-
-{"numbers": [1.5, 2.3, 3.7, 4.2]}
-```
-
-### 5. C++素数判断
-```
-GET /api/isprime?n=997
-```
-| 参数 | 类型 | 范围 | 说明 |
-|---|---|---|---|
-| n | number | 0 - 100,000,000 | 待判断的整数 |
-
-### 6. 运行环境信息
-```
-GET /api/info
-```
-展示Node版本、平台架构、C++模块加载自检结果。
-
-## 部署到 Vercel
-
-### 方式一：Git 自动部署（推荐）
-
-```bash
-# 1. 将代码推送到 GitHub/GitLab/Bitbucket
-git init
-git add .
-git commit -m "feat: init node-cpp-vercel-api"
-git remote add origin <你的仓库地址>
-git push -u origin main
-
-# 2. 打开 https://vercel.com/new
-#    - 选择你的仓库
-#    - Vercel 会自动识别为 Node.js 项目
-#    - Framework Preset 选择 "Other"
-#    - Build Command 和 Install Command 会自动读取 vercel.json
-#    - 点击 Deploy
-```
-
-### 方式二：CLI 一键部署
-
-```bash
-# 安装 Vercel CLI（已包含在devDependencies中）
-npm i -g vercel
-
-# 登录
-vercel login
-
-# 预览部署
-npm run deploy:preview
-
-# 生产部署
-npm run deploy:prod
-```
-
-### 部署时会发生什么
-
-1. Vercel 在 Linux 构建容器中执行 `npm install`
-2. npm install 触发 `node-gyp rebuild`，调用 GCC 编译 `src/native/math_addon.cc` → 生成 `build/Release/math_addon.node`
-3. 执行 `npm run build`（即 `tsc`），将 `api/*.ts` 和 `src/**/*.ts` 编译为 JS 到 `dist/`
-4. Vercel 将 `api/` 目录下每个文件打包为独立的 Serverless Function
-5. 部署完成，分配 `https://xxx.vercel.app` 域名
-
-## 关键配置说明
-
-### 为什么用 N-API 而不是直接用 V8 API？
-- **N-API** 是 Node.js 官方稳定 ABI 接口，C++ 编译的 `.node` 文件可以跨 Node.js 大版本使用，无需为每个 Node 版本重新编译
-- **node-addon-api** 是 N-API 的 C++ 封装，提供面向对象的 API（Napi::String、Napi::Number 等），开发体验更好
-
-### C++ 模块适合做什么？
-- ✅ CPU 密集型计算（图像处理、加密、数值计算、物理模拟）
-- ✅ 复用已有的 C/C++ 库（音视频编解码、机器学习推理）
-- ✅ 直接操作内存/硬件（零拷贝数据处理）
-- ❌ I/O 密集型操作（数据库查询、网络请求）→ 直接用 JS 写即可
-- ❌ 简单业务逻辑 → C++ 增加复杂度但无性能收益
-
-### Vercel 上 C++ 模块的限制
-- Serverless 函数冷启动会加载 `.node` 文件，二进制模块越大冷启动越慢（本示例约几十KB，影响可忽略）
-- 函数最大执行时间：Hobby 版 10秒、Pro 版 60秒（CPU密集任务注意控制耗时）
-- `/tmp` 是唯一可写目录（C++代码如需写临时文件请用 `/tmp`）
-- 每次部署在干净 Linux 环境重新编译，不要提交本地编译的 `.node` 文件
-
-## 性能对比参考
-
-| 操作 | 纯 JavaScript | C++ N-API | 加速比 |
-|---|---|---|---|
-| 斐波那契(n=100000) | ~3ms | ~0.3ms | ~10x |
-| 100万元素求和 | ~4ms | ~0.5ms | ~8x |
-| 素数判断(n=10^7) | ~15ms | ~1.5ms | ~10x |
-
-> 实际加速比取决于算法类型和数据规模，数值计算类通常能获得 5-20x 提升。
-
-## 常见问题
-
-**Q: npm install 时报 node-gyp 编译错误怎么办？**
-A: 检查 Python 是否安装（3.8+）、C++ 编译器是否就位。Windows 用户需要安装 Visual Studio Build Tools 并重启终端。
-
-**Q: Vercel 部署日志显示 "Cannot find module '../build/Release/math_addon.node'"？**
-A: 确认 package.json 中 `"gypfile": true` 存在，且 vercel.json 的 buildCommand 包含 `npm run rebuild`。
-
-**Q: 可以用 WebAssembly 代替 C++ Addon 吗？**
-A: 可以。WASM 的优势是跨平台无需编译，但性能略低于原生 N-API 模块，且无法直接调用系统 API。如果不需要极致性能或系统调用，WASM + Emscripten 也是好选择。
-
-**Q: 如何添加更多 C++ 函数？**
-A: 1) 在 `math_addon.cc` 中编写 C++ 函数并用 Napi::包装；2) 在 `Init()` 函数中 `exports.Set()` 导出；3) 在 `types/math_addon.d.ts` 中添加类型声明；4) 在 `src/native/index.ts` 中导出；5) 运行 `npm run rebuild` 重新编译。
+| 方案 | 本地零编译 | Vercel 兼容 | 性能 | 评价 |
+|---|---|---|---|---|
+| **WebAssembly（推荐）** | ✅ 可直接用 JS fallback | ✅ 原生支持 | ⭐⭐⭐⭐ 接近原生 | 最佳平衡 |
+| Koffi FFI | ❌ 仍需编译 ffi 原生模块 | ❌ Linux/Windows DLL 不通用 | ⭐⭐⭐ | 适合已有 DLL 场景 |
+| prebuildify 预编译 | ⚠️ 用户不用编译但开发者仍需 VS | ✅ | ⭐⭐⭐⭐⭐ | 你自己仍要装 VS |
+| napi-rs (Rust) | ❌ 仍需 Rust 工具链 | ✅ | ⭐⭐⭐⭐⭐ | 需要学 Rust |
+| child_process 调用 exe | ✅ 可在 CI 编译 | ❌ Vercel 无 gcc | ⭐⭐⭐⭐ | 部署不可行 |

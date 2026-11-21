@@ -1,31 +1,16 @@
-// API路由：调用C++原生模块对数组求和
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mathNative } from '../src/native/index.js';
+import { getMathModule } from '../src/native/index.js';
+import { sendOk, sendError } from '../src/utils/response.js';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: '仅支持POST方法' });
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return sendError(res, 405, '仅支持 POST');
+  const { numbers } = req.body as { numbers?: number[] };
+  if (!Array.isArray(numbers) || numbers.length === 0) {
+    return sendError(res, 400, '请求体需为 { numbers: number[] }');
   }
-
-  const body = req.body as { numbers?: number[] };
-  if (!body?.numbers || !Array.isArray(body.numbers)) {
-    return res.status(400).json({
-      error: '请求体需包含numbers数组',
-      example: { numbers: [1.5, 2.3, 3.7, 4.2] }
-    });
-  }
-
-  const arr = new Float64Array(body.numbers);
-  const start = process.hrtime.bigint();
-  const sum = mathNative.sumArray(arr);
-  const end = process.hrtime.bigint();
-  const durationMs = Number(end - start) / 1e6;
-
-  res.status(200).json({
-    operation: 'sumArray',
-    arrayLength: arr.length,
-    sum,
-    computedBy: 'C++ N-API native addon',
-    durationMs: Math.round(durationMs * 1000) / 1000,
-  });
+  if (numbers.length > 1_000_000) return sendError(res, 400, '数组长度不能超过 100 万');
+  const m = await getMathModule();
+  const t0 = Date.now();
+  const result = m.sumArray(numbers);
+  sendOk(res, { count: numbers.length, result, elapsed_ms: Date.now() - t0, backend: m.backend });
 }
