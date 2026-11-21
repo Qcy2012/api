@@ -1,64 +1,62 @@
-// math.cpp - Compile to math.wasm with Emscripten
-// C functions callable from JS via WebAssembly exports
+// math.cpp — C++ logic compiled to WebAssembly
+// Exports: _fibonacci, _sum_array, _is_prime, _factorial, _calc_hypot, _count_letters, _malloc, _free
 
-#include <stdint.h>
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstring>
+#include <cstdint>
 
 extern "C" {
 
-// Fibonacci (iterative for speed)
-uint64_t fibonacci(int32_t n) {
-  if (n <= 0) return 0;
-  if (n == 1) return 1;
-  uint64_t a = 0, b = 1;
-  for (int32_t i = 2; i <= n; i++) {
-    uint64_t c = a + b;
-    a = b; b = c;
-  }
-  return b;
+// Fibonacci (iterative, O(n)) — returns int64 to avoid overflow for n up to ~90
+int64_t fibonacci(int n) {
+    if (n < 0) return -1;
+    if (n < 2) return n;
+    int64_t a = 0, b = 1;
+    for (int i = 2; i <= n; ++i) {
+        int64_t c = a + b;
+        a = b; b = c;
+    }
+    return b;
 }
 
-// Sum array - takes pointer to float64 array and length
-double sum_array(const double* arr, int32_t len) {
-  double s = 0;
-  for (int32_t i = 0; i < len; i++) s += arr[i];
-  return s;
+// Sum of f64 array — JS passes pointer + length via shared memory
+double sum_array(const double* arr, int len) {
+    double s = 0;
+    for (int i = 0; i < len; ++i) s += arr[i];
+    return s;
 }
 
-// Primality test
-int32_t is_prime(int32_t n) {
-  if (n <= 1) return 0;
-  if (n <= 3) return 1;
-  if (n % 2 == 0) return 0;
-  for (int32_t i = 3; i * i <= n; i += 2) {
-    if (n % i == 0) return 0;
-  }
-  return 1;
+// Primality test — simple trial division, fine for moderate inputs
+int is_prime(int n) {
+    if (n < 2) return 0;
+    if (n < 4) return 1;
+    if (n % 2 == 0 || n % 3 == 0) return 0;
+    for (int i = 5; i * i <= n; i += 6) {
+        if (n % i == 0 || n % (i + 2) == 0) return 0;
+    }
+    return 1;
 }
 
-// Factorial
-uint64_t factorial(int32_t n) {
-  if (n < 0) return 0;
-  uint64_t r = 1;
-  for (int32_t i = 2; i <= n; i++) r *= i;
-  return r;
+int64_t factorial(int n) {
+    if (n < 0) return -1;
+    if (n <= 1) return 1;
+    int64_t r = 1;
+    for (int i = 2; i <= n; ++i) r *= i;
+    return r;
 }
 
-// Hypotenuse
 double calc_hypot(double a, double b) {
-  return sqrt(a*a + b*b);
+    return std::sqrt(a * a + b * b);
 }
 
-// Count letters in a UTF-8 string (pointer + length)
-int32_t count_letters(const char* s, int32_t len) {
-  int32_t count = 0;
-  for (int32_t i = 0; i < len; i++) {
-    unsigned char c = (unsigned char)s[i];
-    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) count++;
-  }
-  return count;
+// Count A-Z and a-z letters in a string passed by pointer+len, returns 32-bit int
+int count_letters(const char* s, int len) {
+    int c = 0;
+    for (int i = 0; i < len; ++i) {
+        char ch = s[i];
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) ++c;
+    }
+    return c;
 }
 
-}
+} // extern "C"

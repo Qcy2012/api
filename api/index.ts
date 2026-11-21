@@ -1,19 +1,18 @@
-// GET /api - API documentation entry
+// api/index.ts — API documentation entry
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(_req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
-    name: 'Node.js + C++/WASM API',
-    description: 'API site running on Vercel, no gyp/VS required',
+    name: 'Node.js + TypeScript + C++ (WASM) API',
     endpoints: {
-      'GET /api/health': 'Health check',
-      'GET /api/fibonacci?n=50': 'C++ Fibonacci (uint64)',
-      'POST /api/sum': 'C++ array sum, body: { numbers: number[] }',
-      'GET /api/isprime?n=997': 'C++ primality test',
-      'GET /api/factorial?n=15': 'C++ factorial',
-      'GET /api/hypot?a=3&b=4': 'C++ hypotenuse',
-      'POST /api/count-letters': 'C++ letter count, body: { text: string }',
-      'GET /api/info': 'Runtime info and backend status'
+      health: 'GET /api/health',
+      fibonacci: 'GET /api/fibonacci?n=60',
+      sum: 'POST /api/sum  body: { numbers: number[] }',
+      isprime: 'GET /api/isprime?n=997',
+      factorial: 'GET /api/factorial?n=15',
+      hypot: 'GET /api/hypot?a=3&b=4',
+      countLetters: 'POST /api/count-letters  body: { text: string }',
+      info: 'GET /api/info'
     }
   });
 }

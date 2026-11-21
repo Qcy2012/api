@@ -1,13 +1,17 @@
 {
   "name": "node-wasm-vercel-api",
   "version": "1.0.0",
-  "description": "Node.js + C++/WASM API site, deploy to Vercel without VS or gyp",
-  "engines": { "node": "22.x" },
+  "description": "Node.js + TypeScript + C++ (WASM) API website deployed on Vercel",
+  "private": true,
+  "engines": {
+    "node": ">=20.x"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build:wasm": "node scripts/build-wasm.mjs",
+    "build": "tsc --noEmit",
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@vercel/node": "^5.1.6"

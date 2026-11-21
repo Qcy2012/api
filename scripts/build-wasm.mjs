@@ -1,38 +1,60 @@
-// build-wasm.mjs - Helper script to compile C++ to WASM via Emscripten Docker
-// Usage: node scripts/build-wasm.mjs
-// Requires Docker running; no Emscripten install needed on host.
+// scripts/build-wasm.mjs
+// Compile wasm/math.cpp to wasm/math.wasm using emscripten.
+// Requires emcc in PATH (install via: https://emscripten.org/docs/getting_started/downloads.html)
+// This is a build helper, NOT required for Vercel deployment — wasm/math.wasm is committed.
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import { resolve } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const root = resolve(__dirname, '..');
 
-const wasmDir = resolve(import.meta.dirname, '../wasm');
-const cppFile = resolve(wasmDir, 'math.cpp');
+const src = resolve(root, 'wasm/math.cpp');
+const out = resolve(root, 'wasm/math.wasm');
 
-if (!existsSync(cppFile)) {
-  console.error('math.cpp not found at', cppFile);
+const hasEmcc = (() => {
+  try {
+    execSync('emcc --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+if (!hasEmcc) {
+  console.error('ERROR: emcc not found in PATH.');
+  console.error('Install Emscripten (https://emscripten.org) then run `npm run build:wasm` again.');
+  console.error('Alternatively compile with Docker one-liner (see README.md).');
   process.exit(1);
 }
 
-// Check if docker is available
-let dockerAvailable = false;
-try {
-  execSync('docker --version', { stdio: 'pipe' });
-  dockerAvailable = true;
-} catch {
-  console.log('Docker not found. Using pre-compiled math.wasm or JS fallback.');
-  console.log('To compile C++, install Docker or Emscripten, then:');
-  console.log('  emcc wasm/math.cpp -o wasm/math.wasm -s WASM=1 -s STANDALONE_WASM=1 -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -s MALLOC=emmalloc -s "EXPORTED_FUNCTIONS=[\'_fibonacci\',\'_sum_array\',\'_is_prime\',\'_factorial\',\'_calc_hypot\',\'_count_letters\',\'_malloc\',\'_free\']" -O3');
-  process.exit(0);
+if (!existsSync(src)) {
+  console.error('ERROR: source file not found:', src);
+  process.exit(1);
 }
 
-console.log('Compiling C++ to WASM via Emscripten Docker...');
-const cmd = `docker run --rm -v "${wasmDir}:/src" emscripten/emsdk emcc /src/math.cpp -o /src/math.wasm -s WASM=1 -s STANDALONE_WASM=1 -s NO_EXIT_RUNTIME=1 -s ALLOW_MEMORY_GROWTH=1 -s MALLOC=emmalloc -s "EXPORTED_FUNCTIONS=['_fibonacci','_sum_array','_is_prime','_factorial','_calc_hypot','_count_letters','_malloc','_free']" -s ERROR_ON_UNDEFINED_SYMBOLS=0 -O3`;
+const exported = "['_fibonacci','_sum_array','_is_prime','_factorial','_calc_hypot','_count_letters','_malloc','_free']";
 
+const args = [
+  'emcc', src,
+  '-o', out,
+  '-s', 'WASM=1',
+  '-s', 'STANDALONE_WASM=1',
+  '-s', 'NO_EXIT_RUNTIME=1',
+  '-s', 'ALLOW_MEMORY_GROWTH=1',
+  '-s', 'MALLOC=emmalloc',
+  '-O3',
+  '-s', `EXPORTED_FUNCTIONS=${exported}`
+];
+
+console.log('Compiling with emcc…');
 try {
-  execSync(cmd, { stdio: 'inherit' });
-  console.log('Success: wasm/math.wasm generated');
+  execSync(args.join(' '), { stdio: 'inherit', cwd: root });
+  console.log('Built:', out);
 } catch (e) {
-  console.error('Compilation failed:', (e as Error).message);
+  const msg = e instanceof Error ? e.message : String(e);
+  console.error('Compilation failed:', msg);
   process.exit(1);
 }

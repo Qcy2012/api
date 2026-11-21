@@ -1,13 +1,13 @@
-// GET /api/factorial?n=15 - C++ factorial
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mathNative } from '../src/native/index';
+import { mathModule } from '../src/native/index';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const n = parseInt(req.query.n as string, 10);
-  if (isNaN(n) || n < 0) return res.status(400).json({ error: 'n must be non-negative integer' });
-  if (n > 20) return res.status(400).json({ error: 'n must be <= 20 (fits uint64)' });
-  const start = process.hrtime.bigint();
-  const result = mathNative.factorial(n);
-  const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
-  res.status(200).json({ n, result, elapsed_ms: elapsed, backend: mathNative.backend });
+  const n = parseInt(String(req.query.n ?? '5'), 10);
+  if (Number.isNaN(n) || n < 0 || n > 20) {
+    return res.status(400).json({ error: 'Parameter n must be an integer between 0 and 20.' });
+  }
+  const start = Date.now();
+  const result = mathModule.factorial(n);
+  const ms = Date.now() - start;
+  res.status(200).json({ n, result, backend: mathModule.backend, ms });
 }
