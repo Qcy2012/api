@@ -1,5 +1,30 @@
+# 依赖目录
 node_modules/
+
+# C++编译产物
+build/
+*.node
+
+# TypeScript编译产物
 dist/
-notices.txt
-project-structure.txt
+
+# Vercel
+.vercel/
+
+# 环境变量
 .env
+.env.local
+.env.*.local
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp

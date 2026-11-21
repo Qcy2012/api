@@ -1,22 +1,32 @@
 {
-  "name": "API-Server",
+  "name": "node-cpp-vercel-api",
   "version": "1.0.0",
+  "description": "Node.js + TypeScript + C++ N-API API deployed on Vercel",
+  "type": "module",
+  "main": "dist/api/index.js",
   "scripts": {
-    "build:native": "node-gyp rebuild",
-    "build:ts": "tsc",
-    "start": "node dist/server.js",
-    "dev": "ts-node src/server.ts"
+    "build": "tsc",
+    "dev": "tsc --watch & vercel dev",
+    "start": "vercel dev",
+    "rebuild": "node-gyp rebuild",
+    "configure": "node-gyp configure",
+    "compile": "node-gyp build",
+    "clean": "node-gyp clean",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "dependencies": {
-    "express": "^5.0.0",
-    "node-addon-api": "^8.0.0"
+    "@vercel/node": "^3.2.0",
+    "node-addon-api": "^8.1.0",
+    "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.0.0",
-    "node-gyp": "^11.0.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vercel": "^34.0.0"
   },
-  "gypfile": true
+  "gypfile": true,
+  "engines": {
+    "node": ">=18.x"
+  }
 }
