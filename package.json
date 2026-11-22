@@ -16,7 +16,7 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.20.5",
-    "node-gyp": "^11.0.0",
+    "node-gyp": "^13.1.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.9.3"
   },
