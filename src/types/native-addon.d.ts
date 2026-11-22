@@ -1,3 +1,3 @@
 declare module "*/heavy_calc.node" {
-  export function computeAsync(n: number): Promise<number>;
+  export function computeAsync(n: number): Promise<bigint>;
 }
