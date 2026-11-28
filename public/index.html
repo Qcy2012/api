@@ -289,11 +289,9 @@
       </div>
       <div class="api-desc">在安全的 Lua 沙箱中执行代码，请将结果赋值给 result 变量。</div>
       <div class="playground">
-      <textarea id="lua-code" rows="4" style="width:100%; font-family: monospace; background:#0b1120; color:#e2e8f0; border:1px solid #333; border-radius:8px; padding:10px;">result = 0
-for i = 1, 100 do
-  result = result + i
-end
-print(result)</textarea>
+      <textarea id="lua-code" rows="4" style="width:100%; font-family: monospace; background:#0b1120; color:#e2e8f0; border:1px solid #333; border-radius:8px; padding:10px;">
+local t = { name = "Alice", score = 99 }
+print(string.format('{"name":"%s","score":%d}', t.name, t.score))</textarea>
         <button onclick="testLua(this)">执行</button>
       </div>
       <div class="result-box" id="output-lua"></div>

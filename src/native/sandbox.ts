@@ -22,36 +22,48 @@ const initPromise = (async () => {
   return lua;
 })();
 
-export async function runSandboxedLua(code: string): Promise<{ ok: boolean; result?: string; error?: string }> {
+export async function runSandboxedLua(code: string): Promise<{ ok: boolean; result?: any; error?: string }> {
+  // 1. 等待初始化
   const lua = await initPromise;
 
-  // 每次执行前重置沙箱
-  lua.sandboxReset();
-  (global as any).__getLuaOutput(); // 清空之前的输出缓存
+  // 2. 超时控制 (1.5 秒)
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Execution timeout (1.5s)')), 1500);
+  });
 
-  // 设置严格限制
-  try {
-    lua.setLimits({
-      maxInstructions: 1_000_000,
-      maxMemory: 16 * 1024 * 1024,
-      strict: true,
-    });
-  } catch (e) {
-    // 某些版本可能不需要 setLimits 或者在 sandboxReset 后自带限制，忽略错误
-  }
-
-  try {
+  // 3. 执行逻辑
+  const execPromise = (async () => {
+    lua.sandboxReset();
+    (global as any).__getLuaOutput(); // 清空以前的输出
+    lua.setLimits({ maxInstructions: 1_000_000, maxMemory: 16 * 1024 * 1024, strict: true });
+    
     const result = lua.tryExec(code);
+    if (!result.ok) throw new Error(String(result.error));
+    
+    return (global as any).__getLuaOutput() || '(no output)';
+  })();
 
-    if (!result.ok) {
-      return { ok: false, error: String(result.error) };
+  try {
+    // 竞速：要么执行成功，要么超时
+    const rawOutput = await Promise.race([execPromise, timeoutPromise]);
+    clearTimeout(timer!); // 成功执行后清理定时器
+
+    // 4. 自动解析 JSON
+    if (rawOutput && (rawOutput.startsWith('{') || rawOutput.startsWith('['))) {
+      try {
+        const parsed = JSON.parse(rawOutput);
+        return { ok: true, result: parsed };
+      } catch (e) {
+        // 解析失败就当普通字符串返回
+        return { ok: true, result: rawOutput };
+      }
     }
 
-    // 获取用户 print 出来的结果
-    const output = (global as any).__getLuaOutput();
+    return { ok: true, result: rawOutput };
 
-    return { ok: true, result: output || '(no output)' };
   } catch (err: any) {
+    clearTimeout(timer!); // 发生错误或超时后清理定时器
     return { ok: false, error: err.message };
   }
 }
