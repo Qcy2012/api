@@ -25,7 +25,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// 新增的 cipher 路由
+// 已有的 cipher 路由
 app.get('/api/cipher', (req, res) => {
   const text = req.query.text as string;
   const shift = parseInt(req.query.shift as string, 10);
@@ -37,6 +37,18 @@ app.get('/api/cipher', (req, res) => {
   // 调用新加的 C++ 函数
   const { result, backend } = mathNative.caesarCipher(text, shift);
   res.json({ input: text, shift, result, backend });
+});
+
+// 根路由，返回 API 文档
+app.get('/', (_req, res) => {
+  res.json({
+    message: "欢迎使用 C++ (WASM) API 服务",
+    endpoints: {
+      "GET /api/health": "健康检查接口",
+      "GET /api/compute?n={number}": "计算累加和",
+      "GET /api/cipher?text={string}&shift={number}": "字符串加密"
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
