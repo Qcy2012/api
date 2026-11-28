@@ -1,1 +1,0 @@
-$env:GYP_MSVS_VERSION="2026"
