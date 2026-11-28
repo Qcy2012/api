@@ -1,54 +1,74 @@
 import express from 'express';
 import { mathNative } from './native';
+import { encodeWebP } from './native/webp'; // 引入刚才写的 webp 模块
 
 const app = express();
 
-// 已有的 compute 路由
+// 必须加上这一行，用于解析前端发来的 JSON 数据（POST 请求）
+app.use(express.json({ limit: '10mb' })); 
+
+// 根路径：返回 API 文档 HTML
+app.get('/', (req, res) => {
+  res.sendFile(process.cwd() + '/public/index.html');
+});
+
+// 接口 1：计算累加
 app.get('/api/compute', (req, res) => {
-  const nStr = req.query.n as string;
-  
-  if (!nStr) {
-    return res.status(400).json({ error: 'n is required' });
-  }
-
-  try {
-    const { result, backend } = mathNative.heavyCompute(nStr);
-    // result 已经是字符串了，直接返回即可
-    res.json({ input: nStr, result, backend });
-  } catch (error) {
-    res.status(400).json({ error: 'Invalid input for BigInt conversion' });
-  }
+  const n = req.query.n as string;
+  if (!n) return res.status(400).json({ error: 'n is required' });
+  const { result, backend } = mathNative.heavyCompute(n);
+  res.json({ input: n, result, backend });
 });
 
-// 已有的 health 路由
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// 已有的 cipher 路由
+// 接口 2：字符串加密
 app.get('/api/cipher', (req, res) => {
   const text = req.query.text as string;
   const shift = parseInt(req.query.shift as string, 10);
-  
   if (!text || isNaN(shift)) {
     return res.status(400).json({ error: 'text and shift are required' });
   }
-
-  // 调用新加的 C++ 函数
   const { result, backend } = mathNative.caesarCipher(text, shift);
   res.json({ input: text, shift, result, backend });
 });
 
-// 根路由，返回 API 文档
-app.get('/', (_req, res) => {
-  res.json({
-    message: "欢迎使用 C++ (WASM) API 服务",
-    endpoints: {
-      "GET /api/health": "健康检查接口",
-      "GET /api/compute?n={number}": "计算累加和",
-      "GET /api/cipher?text={string}&shift={number}": "字符串加密"
+// 接口 3：WebP 编码
+app.post('/api/encode', (req, res) => {
+  const { base64, width, height, quality = 75 } = req.body || {};
+
+  if (!base64 || !width || !height) {
+    return res.status(400).json({ error: 'base64, width, height are required' });
+  }
+
+  try {
+    const rgba = Buffer.from(base64, 'base64');
+    const expected = width * height * 4;
+    
+    if (rgba.length !== expected) {
+      return res.status(400).json({ 
+        error: `RGBA data length mismatch: got ${rgba.length}, expected ${expected}` 
+      });
     }
-  });
+
+    // 调用 WASM 进行编码
+    const webpData = encodeWebP(rgba, width, height, quality);
+    
+    if (!webpData) {
+      return res.status(500).json({ error: 'Encoding failed' });
+    }
+
+    res.json({
+      size: webpData.length,
+      webpBase64: Buffer.from(webpData).toString('base64'),
+      backend: 'wasm'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 健康检查
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
 });
 
 const PORT = process.env.PORT || 3000;

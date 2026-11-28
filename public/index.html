@@ -236,86 +236,139 @@
       <p>极速、无状态的 WebAssembly 计算引擎</p>
     </header>
 
-    <!-- 接口 1：Compute -->
+    <!-- 原有的接口 1 -->
     <div class="api-card">
       <div class="api-header">
         <span class="method">GET</span>
         <span class="path">/api/compute</span>
       </div>
-      <div class="api-desc">计算从 1 累加到 n 的结果。底层使用 C++ __int128 处理超大数字。</div>
-      
       <div class="playground">
-        <div class="input-group">
-          <label>参数 n (支持大整数)</label>
-          <input type="text" id="input-n" value="10000000000" placeholder="例如 10000000000">
-        </div>
-        <button onclick="testCompute(this)">发送请求</button>
+        <input type="text" id="input-n" value="10000000000">
+        <button onclick="testCompute(this)">发送</button>
       </div>
-      
       <div class="result-box" id="output-compute"></div>
     </div>
 
-    <!-- 接口 2：Cipher -->
+    <!-- 原有的接口 2 -->
     <div class="api-card">
       <div class="api-header">
         <span class="method">GET</span>
         <span class="path">/api/cipher</span>
       </div>
-      <div class="api-desc">对字符串进行凯撒密码加密。测试 WASM 线性内存的指针读写。</div>
-      
+      <div class="playground">
+        <input type="text" id="input-text" value="Hello WASM">
+        <input type="number" id="input-shift" value="3">
+        <button onclick="testCipher(this)">发送</button>
+      </div>
+      <div class="result-box" id="output-cipher"></div>
+    </div>
+
+    <!-- 新增的接口 3：WebP -->
+    <div class="api-card">
+      <div class="api-header">
+        <span class="method">POST</span>
+        <span class="path">/api/encode</span>
+      </div>
+      <div class="api-desc">将 RGBA 像素数据编码为 WebP（测试 libwebp）。</div>
       <div class="playground">
         <div class="input-group">
-          <label>文本</label>
-          <input type="text" id="input-text" value="Hello WASM" placeholder="输入文本">
+          <label>质量 (0-100)</label>
+          <input type="number" id="webp-quality" value="75">
         </div>
-        <div class="input-group" style="flex: 0.5;">
-          <label>偏移量</label>
-          <input type="number" id="input-shift" value="3" placeholder="例如 3">
-        </div>
-        <button onclick="testCipher(this)">发送请求</button>
+        <button onclick="testEncodeWebP(this)">生成测试图并编码</button>
       </div>
-      
-      <div class="result-box" id="output-cipher"></div>
+      <div class="result-box" id="output-webp"></div>
+      <!-- 用于预览生成的图片 -->
+      <img id="webp-preview" style="display:none; max-width: 100%; margin-top: 15px; border-radius: 8px;" />
     </div>
   </div>
 
   <script>
-    // 通用的请求处理函数
-    async function makeRequest(url, btn, outElement) {
-      // UI 状态：加载中
-      btn.classList.add('loading');
-      outElement.className = 'result-box active';
-      outElement.textContent = '执行中...';
-      
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (!res.ok) throw new Error(data.error || 'Server error');
-        
-        // 成功：美化 JSON 输出
-        outElement.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        // 失败：红色错误提示
-        outElement.className = 'result-box active error';
-        outElement.textContent = '❌ 请求失败: ' + err.message;
-      } finally {
-        // 恢复按钮状态
-        btn.classList.remove('loading');
-      }
+    async function makeRequest(url, btn, outElement) { /* 之前写过的通用请求函数 */ 
+        btn.classList.add('loading');
+        outElement.className = 'result-box active';
+        outElement.textContent = '执行中...';
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Server error');
+            outElement.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            outElement.className = 'result-box active error';
+            outElement.textContent = '❌ 请求失败: ' + err.message;
+        } finally {
+            btn.classList.remove('loading');
+        }
     }
 
     function testCompute(btn) {
-      const n = encodeURIComponent(document.getElementById('input-n').value);
-      const out = document.getElementById('output-compute');
-      makeRequest(`/api/compute?n=${n}`, btn, out);
+        const n = encodeURIComponent(document.getElementById('input-n').value);
+        makeRequest(`/api/compute?n=${n}`, btn, document.getElementById('output-compute'));
     }
 
     function testCipher(btn) {
-      const text = encodeURIComponent(document.getElementById('input-text').value);
-      const shift = document.getElementById('input-shift').value;
-      const out = document.getElementById('output-cipher');
-      makeRequest(`/api/cipher?text=${text}&shift=${shift}`, btn, out);
+        const text = encodeURIComponent(document.getElementById('input-text').value);
+        const shift = document.getElementById('input-shift').value;
+        makeRequest(`/api/cipher?text=${text}&shift=${shift}`, btn, document.getElementById('output-cipher'));
+    }
+
+    async function testEncodeWebP(btn) {
+      const quality = document.getElementById('webp-quality').value;
+      const out = document.getElementById('output-webp');
+      const imgPreview = document.getElementById('webp-preview');
+      
+      btn.classList.add('loading');
+      out.className = 'result-box active';
+      out.textContent = '生成图像并请求 WASM 编码...';
+      imgPreview.style.display = 'none';
+
+      try {
+        // 1. 用 Canvas 生成一张 256x256 测试图
+        const width = 256, height = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        // 绘制一个渐变色块
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(1, '#34d399');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        
+        // 2. 提取 RGBA 数据并转 Base64
+        const imageData = ctx.getImageData(0, 0, width, height);
+        // 注意：如果图片较大，直接 String.fromCharCode(...data) 会爆栈，这里用循环处理
+        let binary = '';
+        const bytes = new Uint8Array(imageData.data.buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+
+        // 3. 发送 POST 请求
+        const res = await fetch('/api/encode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64, width, height, quality: parseFloat(quality) })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Server error');
+        
+        // 4. 显示结果
+        out.textContent = `✅ 编码成功！\n原始大小: ${bytes.byteLength} 字节\nWebP 大小: ${data.size} 字节\n后端: ${data.backend}`;
+        
+        // 5. 预览图片
+        imgPreview.src = `data:image/webp;base64,${data.webpBase64}`;
+        imgPreview.style.display = 'block';
+
+      } catch (err) {
+        out.className = 'result-box active error';
+        out.textContent = '❌ 编码失败: ' + err.message;
+      } finally {
+        btn.classList.remove('loading');
+      }
     }
   </script>
 </body>

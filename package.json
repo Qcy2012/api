@@ -2,8 +2,9 @@
   "name": "API-Server",
   "version": "1.0.0",
   "scripts": {
-    "dev": "ts-node src/server.ts",
+    "dev": "node --experimental-wasi-unstable-preview1 -r ts-node/register src/server.ts",
     "build:wasm": "node scripts/build-wasm.mjs",
+    "build:webp": "node scripts/build-wasm.mjs --webp",
     "typecheck": "tsc --noEmit",
     "deploy": "vercel --prod"
   },
