@@ -1,12 +1,10 @@
-// @ts-ignore
-import { loadLuaRsNode } from 'omnilua/node';
-
 let luaRuntime: any = null;
 
-// 模块作用域初始化，只跑一次
 const initPromise = (async () => {
-  // 我们用一个变量来暂存用户 print 出来的内容
   let capturedOutput = '';
+  
+  // 动态 import，绕过 CommonJS 的 require 限制
+  const { loadLuaRsNode } = await import('omnilua/node');
   
   const { lua } = await loadLuaRsNode({
     onStdout: (msg: string) => {
@@ -15,10 +13,9 @@ const initPromise = (async () => {
   });
   luaRuntime = lua;
   
-  // 把捕获函数挂载到全局，供 runSandboxedLua 使用
   (global as any).__getLuaOutput = () => {
     const out = capturedOutput.trim();
-    capturedOutput = ''; // 清空，防止影响下一次执行
+    capturedOutput = '';
     return out;
   };
   
