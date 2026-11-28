@@ -15,10 +15,10 @@ console.log('Building WASM using local emcc...');
 try {
   execSync(
     `emcc "${cppFile}" -o "${path.join(wasmDir, 'math.wasm')}" ` +
-    `--no-entry ` +                      // 新增：告诉编译器没有 main 函数
+    `--no-entry ` +                                                   // 新增：告诉编译器没有 main 函数
     `-s WASM=1 -s STANDALONE_WASM=1 ` +
     `-s ALLOW_MEMORY_GROWTH=1 ` +
-    `-s "EXPORTED_FUNCTIONS=['_heavy_compute']" ` +
+    `-s "EXPORTED_FUNCTIONS=['_heavy_compute', '_caesar_cipher', '_free', '_malloc']" ` +
     `-O3`,
     { stdio: 'inherit' }
   );
