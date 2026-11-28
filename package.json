@@ -9,6 +9,8 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.2.3",
+    "@upstash/redis": "^1.41.1",
     "express": "^4.18.2",
     "omnilua": "^0.7.6"
   },
