@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>C++ (WASM) API 文档</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; color: #333; margin: 0; padding: 40px 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h1 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+    .endpoint { margin-bottom: 25px; padding: 15px; background: #f9fafb; border-left: 4px solid #10b981; border-radius: 4px; }
+    .method { font-weight: bold; color: #fff; background: #10b981; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 0.9em; }
+    .path { font-family: monospace; font-size: 1.1em; color: #111827; font-weight: bold; }
+    .desc { margin-top: 8px; color: #6b7280; font-size: 0.95em; }
+    .try-btn { margin-top: 10px; background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    .try-btn:hover { background: #1d4ed8; }
+    .output { margin-top: 10px; background: #1f2937; color: #10b981; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 C++ (WASM) API 在线文档</h1>
+    <p>欢迎！这里提供了基于 WebAssembly 的高性能计算接口。</p>
+
+    <!-- Compute API -->
+    <div class="endpoint">
+      <div>
+        <span class="method">GET</span>
+        <span class="path">/api/compute</span>
+      </div>
+      <div class="desc">计算从 1 累加到 n 的结果 (支持超大数字)。</div>
+      <input type="number" id="input-n" value="10000000000" placeholder="输入 n">
+      <button class="try-btn" onclick="testCompute()">测试接口</button>
+      <div class="output" id="output-compute"></div>
+    </div>
+
+    <!-- Cipher API -->
+    <div class="endpoint">
+      <div>
+        <span class="method">GET</span>
+        <span class="path">/api/cipher</span>
+      </div>
+      <div class="desc">对字符串进行凯撒密码加密。</div>
+      <input type="text" id="input-text" value="HelloWorld" placeholder="输入文本">
+      <input type="number" id="input-shift" value="3" placeholder="偏移量">
+      <button class="try-btn" onclick="testCipher()">测试接口</button>
+      <div class="output" id="output-cipher"></div>
+    </div>
+  </div>
+
+  <script>
+    async function testCompute() {
+      const n = document.getElementById('input-n').value;
+      const out = document.getElementById('output-compute');
+      out.style.display = 'block';
+      out.textContent = '请求中...';
+      try {
+        const res = await fetch(`/api/compute?n=${n}`);
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        out.textContent = '请求失败: ' + err.message;
+      }
+    }
+
+    async function testCipher() {
+      const text = document.getElementById('input-text').value;
+      const shift = document.getElementById('input-shift').value;
+      const out = document.getElementById('output-cipher');
+      out.style.display = 'block';
+      out.textContent = '请求中...';
+      try {
+        const res = await fetch(`/api/cipher?text=${encodeURIComponent(text)}&shift=${shift}`);
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        out.textContent = '请求失败: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
