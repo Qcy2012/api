@@ -1,6 +1,7 @@
 import express from 'express';
 import { mathNative } from './native';
-import { encodeWebP } from './native/webp'; // 引入刚才写的 webp 模块
+import { encodeWebP } from './native/webp';
+import { runSandboxedLua } from './native/sandbox';
 
 const app = express();
 
@@ -64,6 +65,13 @@ app.post('/api/encode', (req, res) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/api/eval', async (req, res) => {
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'code is required' });
+  const result = await runSandboxedLua(code);
+  res.status(result.ok ? 200 : 400).json(result);
 });
 
 // 健康检查
