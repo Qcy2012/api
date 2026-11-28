@@ -10,15 +10,16 @@ if (!fs.existsSync(wasmDir)) {
   fs.mkdirSync(wasmDir, { recursive: true });
 }
 
-console.log('Building WASM using local emcc...');
+console.log('Building WASM using local em++...');
 
 try {
   execSync(
-    `emcc "${cppFile}" -o "${path.join(wasmDir, 'math.wasm')}" ` +
-    `--no-entry ` +                                                   // 新增：告诉编译器没有 main 函数
+    `em++ "${cppFile}" -o "${path.join(wasmDir, 'math.wasm')}" ` +
+    `--no-entry ` +
     `-s WASM=1 -s STANDALONE_WASM=1 ` +
     `-s ALLOW_MEMORY_GROWTH=1 ` +
-    `-s "EXPORTED_FUNCTIONS=['_heavy_compute', '_caesar_cipher', '_free', '_malloc']" ` +
+    `-s EXPORT_ALL=1 ` +     // 增加 EXPORT_ALL=1，强制导出所有符号，防止 malloc/free 被优化掉
+    `-s "EXPORTED_FUNCTIONS=['_heavy_compute', '_caesar_cipher', '_malloc', '_free']" ` +
     `-O3`,
     { stdio: 'inherit' }
   );

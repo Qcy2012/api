@@ -3,17 +3,40 @@ import { mathNative } from './native';
 
 const app = express();
 
+// 已有的 compute 路由
 app.get('/api/compute', (req, res) => {
-  const n = parseInt(req.query.n as string, 10);
-  if (isNaN(n) || n < 0) {
-    return res.status(400).json({ error: 'n must be a non-negative integer' });
+  const nStr = req.query.n as string;
+  
+  if (!nStr) {
+    return res.status(400).json({ error: 'n is required' });
   }
-  const { result, backend } = mathNative.heavyCompute(n);
-  res.json({ input: n, result: result.toString(), backend });
+
+  try {
+    const { result, backend } = mathNative.heavyCompute(nStr);
+    // result 已经是字符串了，直接返回即可
+    res.json({ input: nStr, result, backend });
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid input for BigInt conversion' });
+  }
 });
 
+// 已有的 health 路由
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// 新增的 cipher 路由
+app.get('/api/cipher', (req, res) => {
+  const text = req.query.text as string;
+  const shift = parseInt(req.query.shift as string, 10);
+  
+  if (!text || isNaN(shift)) {
+    return res.status(400).json({ error: 'text and shift are required' });
+  }
+
+  // 调用新加的 C++ 函数
+  const { result, backend } = mathNative.caesarCipher(text, shift);
+  res.json({ input: text, shift, result, backend });
 });
 
 const PORT = process.env.PORT || 3000;
