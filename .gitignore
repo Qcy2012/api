@@ -5,6 +5,7 @@ package-lock.json
 *.node
 dist/
 .vercel/
+build-tools/
 .env
 .env.local
 .env.*.local
