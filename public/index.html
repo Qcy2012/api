@@ -3,79 +3,319 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>C++ (WASM) API 文档</title>
+  <title>C++ (WASM) API Explorer</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; color: #333; margin: 0; padding: 40px 20px; }
-    .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    h1 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-    .endpoint { margin-bottom: 25px; padding: 15px; background: #f9fafb; border-left: 4px solid #10b981; border-radius: 4px; }
-    .method { font-weight: bold; color: #fff; background: #10b981; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 0.9em; }
-    .path { font-family: monospace; font-size: 1.1em; color: #111827; font-weight: bold; }
-    .desc { margin-top: 8px; color: #6b7280; font-size: 0.95em; }
-    .try-btn { margin-top: 10px; background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
-    .try-btn:hover { background: #1d4ed8; }
-    .output { margin-top: 10px; background: #1f2937; color: #10b981; padding: 10px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; display: none; }
+    /* 全局重置与字体 */
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      /* 背景动效：淡淡的渐变光晕 */
+      background-image: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                        radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.15), transparent 25%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+      animation: fadeInDown 0.6s ease-out;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #818cf8, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    /* API 卡片：毛玻璃效果 */
+    .api-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+      animation: fadeInUp 0.6s ease-out both;
+    }
+
+    .api-card:nth-child(2) { animation-delay: 0.1s; }
+    .api-card:nth-child(3) { animation-delay: 0.2s; }
+
+    .api-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .api-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .method {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-right: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .path {
+      font-family: 'Fira Code', monospace;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .api-desc {
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+    }
+
+    /* 表单交互区 */
+    .playground {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .input-group label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    input {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 120px;
+      height: 42px;
+      align-self: flex-end;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:hover { background: var(--primary-hover); }
+    button:active { transform: scale(0.97); }
+    
+    button.loading {
+      color: transparent;
+      pointer-events: none;
+    }
+
+    button.loading::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: 50%;
+      left: 50%;
+      margin: -8px 0 0 -8px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* 结果输出框 */
+    .result-box {
+      background: #0b1120;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+      color: #a78bfa;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 60px;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-box.error { color: #f87171; }
+    .result-box.active { display: block; }
+
+    /* 动画定义 */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🚀 C++ (WASM) API 在线文档</h1>
-    <p>欢迎！这里提供了基于 WebAssembly 的高性能计算接口。</p>
+    <header>
+      <h1>C++ (WASM) API Explorer</h1>
+      <p>极速、无状态的 WebAssembly 计算引擎</p>
+    </header>
 
-    <!-- Compute API -->
-    <div class="endpoint">
-      <div>
+    <!-- 接口 1：Compute -->
+    <div class="api-card">
+      <div class="api-header">
         <span class="method">GET</span>
         <span class="path">/api/compute</span>
       </div>
-      <div class="desc">计算从 1 累加到 n 的结果 (支持超大数字)。</div>
-      <input type="number" id="input-n" value="10000000000" placeholder="输入 n">
-      <button class="try-btn" onclick="testCompute()">测试接口</button>
-      <div class="output" id="output-compute"></div>
+      <div class="api-desc">计算从 1 累加到 n 的结果。底层使用 C++ __int128 处理超大数字。</div>
+      
+      <div class="playground">
+        <div class="input-group">
+          <label>参数 n (支持大整数)</label>
+          <input type="text" id="input-n" value="10000000000" placeholder="例如 10000000000">
+        </div>
+        <button onclick="testCompute(this)">发送请求</button>
+      </div>
+      
+      <div class="result-box" id="output-compute"></div>
     </div>
 
-    <!-- Cipher API -->
-    <div class="endpoint">
-      <div>
+    <!-- 接口 2：Cipher -->
+    <div class="api-card">
+      <div class="api-header">
         <span class="method">GET</span>
         <span class="path">/api/cipher</span>
       </div>
-      <div class="desc">对字符串进行凯撒密码加密。</div>
-      <input type="text" id="input-text" value="HelloWorld" placeholder="输入文本">
-      <input type="number" id="input-shift" value="3" placeholder="偏移量">
-      <button class="try-btn" onclick="testCipher()">测试接口</button>
-      <div class="output" id="output-cipher"></div>
+      <div class="api-desc">对字符串进行凯撒密码加密。测试 WASM 线性内存的指针读写。</div>
+      
+      <div class="playground">
+        <div class="input-group">
+          <label>文本</label>
+          <input type="text" id="input-text" value="Hello WASM" placeholder="输入文本">
+        </div>
+        <div class="input-group" style="flex: 0.5;">
+          <label>偏移量</label>
+          <input type="number" id="input-shift" value="3" placeholder="例如 3">
+        </div>
+        <button onclick="testCipher(this)">发送请求</button>
+      </div>
+      
+      <div class="result-box" id="output-cipher"></div>
     </div>
   </div>
 
   <script>
-    async function testCompute() {
-      const n = document.getElementById('input-n').value;
-      const out = document.getElementById('output-compute');
-      out.style.display = 'block';
-      out.textContent = '请求中...';
+    // 通用的请求处理函数
+    async function makeRequest(url, btn, outElement) {
+      // UI 状态：加载中
+      btn.classList.add('loading');
+      outElement.className = 'result-box active';
+      outElement.textContent = '执行中...';
+      
       try {
-        const res = await fetch(`/api/compute?n=${n}`);
+        const res = await fetch(url);
         const data = await res.json();
-        out.textContent = JSON.stringify(data, null, 2);
+        
+        if (!res.ok) throw new Error(data.error || 'Server error');
+        
+        // 成功：美化 JSON 输出
+        outElement.textContent = JSON.stringify(data, null, 2);
       } catch (err) {
-        out.textContent = '请求失败: ' + err.message;
+        // 失败：红色错误提示
+        outElement.className = 'result-box active error';
+        outElement.textContent = '❌ 请求失败: ' + err.message;
+      } finally {
+        // 恢复按钮状态
+        btn.classList.remove('loading');
       }
     }
 
-    async function testCipher() {
-      const text = document.getElementById('input-text').value;
+    function testCompute(btn) {
+      const n = encodeURIComponent(document.getElementById('input-n').value);
+      const out = document.getElementById('output-compute');
+      makeRequest(`/api/compute?n=${n}`, btn, out);
+    }
+
+    function testCipher(btn) {
+      const text = encodeURIComponent(document.getElementById('input-text').value);
       const shift = document.getElementById('input-shift').value;
       const out = document.getElementById('output-cipher');
-      out.style.display = 'block';
-      out.textContent = '请求中...';
-      try {
-        const res = await fetch(`/api/cipher?text=${encodeURIComponent(text)}&shift=${shift}`);
-        const data = await res.json();
-        out.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        out.textContent = '请求失败: ' + err.message;
-      }
+      makeRequest(`/api/cipher?text=${text}&shift=${shift}`, btn, out);
     }
   </script>
 </body>
